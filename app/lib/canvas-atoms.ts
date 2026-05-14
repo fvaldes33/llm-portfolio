@@ -1,5 +1,9 @@
 import { atom } from "jotai";
-import type { CanvasDocument } from "~/lib/canvas-document";
+import { atomWithStorage, createJSONStorage, RESET } from "jotai/utils";
+import {
+  canvasDocumentSchema,
+  type CanvasDocument,
+} from "~/lib/canvas-document";
 import { welcomeCanvasDocument } from "~/lib/canvas-documents";
 
 export type FollowUpPrompt = {
@@ -7,7 +11,35 @@ export type FollowUpPrompt = {
   prompt: string;
 };
 
-export const canvasDocumentAtom = atom<CanvasDocument>(welcomeCanvasDocument);
+const noopStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
+const jsonCanvasDocumentStorage = createJSONStorage<unknown>(() =>
+  typeof window === "undefined" ? noopStorage : window.localStorage,
+);
+
+const canvasDocumentStorage = {
+  getItem: (key: string, initialValue: CanvasDocument) => {
+    const value = jsonCanvasDocumentStorage.getItem(key, initialValue);
+    const parsed = canvasDocumentSchema.safeParse(value);
+    return parsed.success ? parsed.data : initialValue;
+  },
+  setItem: (key: string, value: CanvasDocument) => {
+    jsonCanvasDocumentStorage.setItem(key, value);
+  },
+  removeItem: (key: string) => {
+    jsonCanvasDocumentStorage.removeItem(key);
+  },
+};
+
+export const canvasDocumentAtom = atomWithStorage<CanvasDocument>(
+  "franco.canvasDocument",
+  welcomeCanvasDocument,
+  canvasDocumentStorage,
+);
 export const followUpPromptsAtom = atom<FollowUpPrompt[]>([]);
 
 export const setCanvasDocumentAtom = atom(
@@ -18,7 +50,7 @@ export const setCanvasDocumentAtom = atom(
 );
 
 export const resetCanvasDocumentAtom = atom(null, (_get, set) => {
-  set(canvasDocumentAtom, welcomeCanvasDocument);
+  set(canvasDocumentAtom, RESET);
 });
 
 export const setFollowUpPromptsAtom = atom(

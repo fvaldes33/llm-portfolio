@@ -8,6 +8,7 @@ import { StatGrid } from "./stat-grid";
 import { TagList } from "./tag-list";
 import { Map } from "./map";
 import { Timeline } from "./timeline";
+import { MomentGrid } from "./moment-grid";
 import { ProjectList } from "./project-list";
 
 export function CanvasBlockRenderer({ block }: { block: CanvasBlock }) {
@@ -26,6 +27,8 @@ export function CanvasBlockRenderer({ block }: { block: CanvasBlock }) {
       return <Map block={block} />;
     case "timeline":
       return <Timeline block={block} />;
+    case "momentGrid":
+      return <MomentGrid block={block} />;
     case "projectList":
       return <ProjectList block={block} />;
     default:

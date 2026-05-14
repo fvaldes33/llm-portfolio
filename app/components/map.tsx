@@ -36,7 +36,7 @@ export function Map({ block }: { block: CanvasMapBlock }) {
           )}
         </div>
       )}
-      <div className="border-border bg-muted/25 relative min-h-[24rem] flex-1 overflow-hidden rounded-[2rem] border">
+      <div className="border-border bg-muted/25 relative aspect-video h-96 min-h-96 flex-1 overflow-hidden rounded-[2rem] border">
         {!mapStyle && (
           <div className="absolute inset-0 grid place-items-center p-6 text-center">
             <div>
@@ -51,7 +51,7 @@ export function Map({ block }: { block: CanvasMapBlock }) {
           <ReactMap
             initialViewState={viewState}
             mapStyle={mapStyle}
-            style={{ width: "100%", height: "100%" }}
+            style={{ position: "absolute", inset: 0 }}
             cooperativeGestures
             attributionControl={false}
           >

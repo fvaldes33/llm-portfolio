@@ -99,6 +99,14 @@ export async function action({ request }: Route.ActionArgs) {
     execute: async ({ writer }) => {
       const modelMessages = await convertToModelMessages(messages);
 
+      let usage:
+        | {
+            inputTokens?: number;
+            outputTokens?: number;
+            totalTokens?: number;
+          }
+        | undefined;
+
       const result = streamText({
         model: anthropic(MODEL),
         system: groundedSystemPrompt,
@@ -120,22 +128,31 @@ export async function action({ request }: Route.ActionArgs) {
             });
           },
         },
-        onFinish: async (event) => {
-          await persistConversationTurn({
-            conversationId,
-            inputMessages: messages,
-            assistantText: event.text,
-            assistantParts: [{ type: "text", text: event.text }],
-            model: MODEL,
-            finishReason: event.finishReason,
-            promptTokens: event.totalUsage.inputTokens,
-            completionTokens: event.totalUsage.outputTokens,
-            totalTokens: event.totalUsage.totalTokens,
-          });
+        onFinish: (event) => {
+          usage = event.totalUsage;
         },
       });
       result.consumeStream();
-      writer.merge(result.toUIMessageStream());
+      writer.merge(
+        result.toUIMessageStream({
+          originalMessages: messages,
+          onFinish: async ({ responseMessage, finishReason }) => {
+            // Persist the final UI message, not the raw text response. This keeps
+            // tool calls/results and generated data parts available after refresh.
+            await persistConversationTurn({
+              conversationId,
+              inputMessages: messages,
+              assistantText: getTextFromParts(responseMessage.parts),
+              assistantParts: responseMessage.parts,
+              model: MODEL,
+              finishReason,
+              promptTokens: usage?.inputTokens,
+              completionTokens: usage?.outputTokens,
+              totalTokens: usage?.totalTokens,
+            });
+          },
+        }),
+      );
     },
     onError: (error: unknown) => {
       console.error("[api.chat] stream error", error);
@@ -149,18 +166,20 @@ export async function action({ request }: Route.ActionArgs) {
   });
 }
 
+function getTextFromParts(parts: FrancoUIMessage["parts"]) {
+  return parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+}
+
 function getLatestUserText(messages: FrancoUIMessage[]) {
   const lastUserMessage = [...messages]
     .reverse()
     .find((message) => message.role === "user");
 
-  return (
-    lastUserMessage?.parts
-      .filter((part) => part.type === "text")
-      .map((part) => part.text)
-      .join("\n")
-      .trim() ?? ""
-  );
+  return lastUserMessage ? getTextFromParts(lastUserMessage.parts) : "";
 }
 
 function getConversationTitle(messages: FrancoUIMessage[]) {

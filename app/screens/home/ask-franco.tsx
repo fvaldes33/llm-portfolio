@@ -1,4 +1,5 @@
-import { useAtomValue } from "jotai";
+import { EyeIcon, RotateCcwIcon } from "lucide-react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { useState } from "react";
 import {
   Conversation,
@@ -21,7 +22,11 @@ import {
 } from "~/components/ai-elements/prompt-input";
 import { Shimmer } from "~/components/ai-elements/shimmer";
 import { Suggestion, Suggestions } from "~/components/ai-elements/suggestion";
-import { followUpPromptsAtom } from "~/lib/canvas-atoms";
+import { followUpPromptsAtom, setCanvasDocumentAtom } from "~/lib/canvas-atoms";
+import {
+  canvasDocumentSchema,
+  type CanvasDocument,
+} from "~/lib/canvas-document";
 import { SUGGESTED_PROMPTS } from "~/lib/franco-knowledge";
 import { cn } from "~/lib/utils";
 import { useFrancoChat } from "./use-franco-chat";
@@ -43,19 +48,45 @@ function getToolOutputCount(part: unknown) {
   return Array.isArray(part.output) ? part.output.length : undefined;
 }
 
+function getCanvasDocumentFromToolPart(part: unknown) {
+  if (!part || typeof part !== "object") return undefined;
+
+  if ("output" in part && part.output && typeof part.output === "object") {
+    const output = part.output;
+    if ("canvasDocument" in output) {
+      const parsed = canvasDocumentSchema.safeParse(output.canvasDocument);
+      if (parsed.success) return parsed.data;
+    }
+  }
+
+  if ("input" in part) {
+    const parsed = canvasDocumentSchema.safeParse(part.input);
+    if (parsed.success) return parsed.data;
+  }
+
+  return undefined;
+}
+
 function ToolCallStatus({
   label,
+  doneLabel,
   state,
   detail,
   resultCount,
+  canvasDocument,
+  onShowCanvas,
 }: {
   label: string;
+  doneLabel?: string;
   state: string;
   detail?: string;
   resultCount?: number;
+  canvasDocument?: CanvasDocument;
+  onShowCanvas?: (canvasDocument: CanvasDocument) => void;
 }) {
   const isDone = state === "output-available";
   const isError = state === "output-error";
+  const displayLabel = isDone && doneLabel ? doneLabel : label;
 
   return (
     <div className="border-border bg-muted/40 text-muted-foreground rounded-2xl border px-3 py-2 text-xs">
@@ -70,8 +101,20 @@ function ToolCallStatus({
                 : "bg-primary animate-pulse",
           )}
         />
-        <span className="text-foreground font-medium">{label}</span>
+        <span className="text-foreground font-medium">{displayLabel}</span>
         <span className="font-mono uppercase">{isDone ? "done" : state}</span>
+        {isDone && canvasDocument && onShowCanvas && (
+          <button
+            type="button"
+            onClick={() => onShowCanvas(canvasDocument)}
+            className="hover:text-foreground focus-visible:ring-ring ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            aria-label={`Show canvas: ${canvasDocument.title}`}
+            title="Show this canvas again"
+          >
+            <EyeIcon className="size-3" />
+            <span>view</span>
+          </button>
+        )}
       </div>
       {detail && <p className="mt-1 truncate">{detail}</p>}
       {typeof resultCount === "number" && (
@@ -84,8 +127,9 @@ function ToolCallStatus({
 }
 
 export function AskFranco() {
-  const { messages, ask, busy, status, error } = useFrancoChat();
+  const { messages, ask, busy, status, error, resetChat } = useFrancoChat();
   const followUpPrompts = useAtomValue(followUpPromptsAtom);
+  const setCanvasDocument = useSetAtom(setCanvasDocumentAtom);
   const [input, setInput] = useState("");
 
   const hasConversation = messages.length > 0;
@@ -119,9 +163,23 @@ export function AskFranco() {
             Ask Me Anything
           </p>
         </div>
-        <p className="text-muted-foreground font-mono text-[0.65rem] tracking-[0.25em] uppercase">
-          live · trained by me
-        </p>
+        <div className="flex items-center gap-3">
+          {hasConversation && (
+            <button
+              type="button"
+              onClick={() => void resetChat()}
+              disabled={busy}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+              title="Reset chat"
+            >
+              <RotateCcwIcon className="size-3" />
+              Reset
+            </button>
+          )}
+          <p className="text-muted-foreground font-mono text-[0.65rem] tracking-[0.25em] uppercase">
+            live · trained by me
+          </p>
+        </div>
       </div>
 
       <Conversation className="min-h-0 flex-1">
@@ -160,8 +218,11 @@ export function AskFranco() {
                       <ToolCallStatus
                         key={`${message.id}-${i}`}
                         label="Composing canvas"
+                        doneLabel="Canvas ready"
                         state={part.state}
                         detail={getToolInputString(part, "title")}
+                        canvasDocument={getCanvasDocumentFromToolPart(part)}
+                        onShowCanvas={setCanvasDocument}
                       />
                     );
                   }
@@ -173,8 +234,11 @@ export function AskFranco() {
                       <ToolCallStatus
                         key={`${message.id}-${i}`}
                         label="Loading canvas"
+                        doneLabel="Canvas ready"
                         state={part.state}
                         detail={getToolInputString(part, "view")}
+                        canvasDocument={getCanvasDocumentFromToolPart(part)}
+                        onShowCanvas={setCanvasDocument}
                       />
                     );
                   }

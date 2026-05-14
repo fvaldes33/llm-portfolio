@@ -57,6 +57,22 @@ export async function loadConversationMessages(
   }));
 }
 
+export async function resetConversationMessages(conversationId?: string) {
+  if (!process.env.DATABASE_URL || !conversationId) return;
+
+  await getDb()
+    .delete(chatMessages)
+    .where(eq(chatMessages.conversationId, conversationId));
+
+  await getDb()
+    .update(chatConversations)
+    .set({
+      messageCount: 0,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(chatConversations.id, conversationId));
+}
+
 export async function persistConversationTurn({
   conversationId,
   inputMessages,

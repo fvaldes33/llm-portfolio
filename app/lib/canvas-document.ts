@@ -63,6 +63,17 @@ export const canvasTimelineBlockSchema = z.object({
   ),
 });
 
+export const canvasMomentGridBlockSchema = z.object({
+  type: z.literal("momentGrid"),
+  items: z.array(
+    z.object({
+      eyebrow: z.string().optional(),
+      title: z.string(),
+      body: z.string(),
+    }),
+  ),
+});
+
 export const canvasProjectListBlockSchema = z.object({
   type: z.literal("projectList"),
   items: z.array(
@@ -83,6 +94,7 @@ export const canvasBlockSchema = z.discriminatedUnion("type", [
   canvasTagListBlockSchema,
   canvasMapBlockSchema,
   canvasTimelineBlockSchema,
+  canvasMomentGridBlockSchema,
   canvasProjectListBlockSchema,
 ]);
 
@@ -114,6 +126,7 @@ export type CanvasStatGridBlock = z.infer<typeof canvasStatGridBlockSchema>;
 export type CanvasTagListBlock = z.infer<typeof canvasTagListBlockSchema>;
 export type CanvasMapBlock = z.infer<typeof canvasMapBlockSchema>;
 export type CanvasTimelineBlock = z.infer<typeof canvasTimelineBlockSchema>;
+export type CanvasMomentGridBlock = z.infer<typeof canvasMomentGridBlockSchema>;
 export type CanvasProjectListBlock = z.infer<
   typeof canvasProjectListBlockSchema
 >;

@@ -62,8 +62,13 @@ export const francoTools = {
         projects: projectsCanvasDocument,
       } satisfies Record<typeof view, CanvasDocument>;
 
-      getFrancoToolContext(experimental_context).writeCanvas(documents[view]);
-      return `Rendered ${view} canvas.`;
+      const canvasDocument = documents[view];
+      getFrancoToolContext(experimental_context).writeCanvas(canvasDocument);
+      return {
+        status: "rendered",
+        title: canvasDocument.title,
+        canvasDocument,
+      };
     },
   }),
   generateFollowUps: tool({
@@ -91,7 +96,11 @@ export const francoTools = {
     inputSchema: canvasDocumentSchema,
     execute: async (canvasDocument, { experimental_context }) => {
       getFrancoToolContext(experimental_context).writeCanvas(canvasDocument);
-      return `Rendered custom canvas: ${canvasDocument.title}.`;
+      return {
+        status: "rendered",
+        title: canvasDocument.title,
+        canvasDocument,
+      };
     },
   }),
 };
