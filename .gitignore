@@ -5,3 +5,7 @@
 # React Router
 /.react-router/
 /build/
+.llm-rules.md
+DESIGN.md
+PRODUCT.md
+/content/

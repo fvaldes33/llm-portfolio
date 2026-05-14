@@ -1,13 +1,17 @@
 import type { Route } from "./+types/home";
-import { Welcome } from "../welcome/welcome";
+import { HomeScreen } from "~/screens/home/home";
 
-export function meta({}: Route.MetaArgs) {
+export function meta(_args: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Franco Valdes | Technical Leader, Entrepreneur, Father" },
+    {
+      name: "description",
+      content:
+        "A personal CV and conversation site for Franco Valdes, Director of Engineering, entrepreneur, and former professional baseball player.",
+    },
   ];
 }
 
 export default function Home() {
-  return <Welcome />;
+  return <HomeScreen />;
 }
