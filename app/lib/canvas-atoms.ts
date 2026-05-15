@@ -3,7 +3,6 @@ import { atomWithStorage, createJSONStorage, RESET } from "jotai/utils";
 import {
   canvasDocumentSchema,
   type CanvasDocument,
-  type CanvasDocumentOutput,
 } from "~/lib/canvas-document";
 import { welcomeCanvasDocument } from "~/lib/canvas-documents";
 
