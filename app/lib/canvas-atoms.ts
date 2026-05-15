@@ -94,20 +94,4 @@ export const resetFollowUpPromptsAtom = atom(null, (_get, set) => {
   set(followUpPromptsAtom, RESET);
 });
 
-/**
- * Imperative handles registered by the mobile bottom sheet when it mounts.
- * Stored in an atom so any component (e.g. the tool-call "view" button) can
- * trigger sheet snaps without prop drilling. Read via `useSheetControl()` —
- * NOT via `useAtomValue` directly, since this is only used in event handlers
- * (no need to subscribe / re-render).
- *
- * `null` when no sheet is mounted (desktop layout). The hook turns calls into
- * safe no-ops in that case.
- */
-export type SheetActions = {
-  revealCanvas: () => void;
-  focusChat: () => void;
-  minimize: () => void;
-};
-
-export const sheetActionsAtom = atom<SheetActions | null>(null);
+export const mobileChatExpandedAtom = atom(false);

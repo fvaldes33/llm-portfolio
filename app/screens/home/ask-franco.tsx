@@ -1,4 +1,4 @@
-import { EyeIcon, RefreshCwIcon, RotateCcwIcon } from "lucide-react";
+import { ArrowUpIcon, RefreshCwIcon, RotateCcwIcon } from "lucide-react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useState } from "react";
 import {
@@ -22,143 +22,34 @@ import {
 } from "~/components/ai-elements/prompt-input";
 import { Shimmer } from "~/components/ai-elements/shimmer";
 import { Suggestion, Suggestions } from "~/components/ai-elements/suggestion";
-import { followUpPromptsAtom, setCanvasDocumentAtom } from "~/lib/canvas-atoms";
 import {
-  canvasDocumentSchema,
-  type CanvasDocument,
-} from "~/lib/canvas-document";
+  followUpPromptsAtom,
+  mobileChatExpandedAtom,
+} from "~/lib/canvas-atoms";
 import { SUGGESTED_PROMPTS } from "~/lib/franco-knowledge";
 import { cn } from "~/lib/utils";
-import { useSheetControl } from "~/hooks/use-sheet-control";
 import { useFrancoChat } from "./use-franco-chat";
+import { isRenderableToolPart, ToolPart } from "~/components/tools";
 
 const seedText =
   "I'm Franco — Director of Engineering at Safety Radar. Ask anything, or pick a question.";
 
-function getToolInputString(part: unknown, key: string) {
-  if (!part || typeof part !== "object" || !("input" in part)) return undefined;
-  const input = part.input;
-  if (!input || typeof input !== "object" || !(key in input)) return undefined;
-  const value = input[key as keyof typeof input];
-  return typeof value === "string" ? value : undefined;
-}
-
-function getKnowledgeSearchDetail(part: unknown) {
-  if (!part || typeof part !== "object" || !("input" in part)) return undefined;
-  const input = part.input;
-  if (!input || typeof input !== "object") return undefined;
-
-  if ("queries" in input && Array.isArray(input.queries)) {
-    const queries = input.queries.filter(
-      (query): query is string => typeof query === "string",
-    );
-    if (queries.length === 0) return undefined;
-    return queries.length === 1
-      ? queries[0]
-      : `${queries.length} search angles · ${queries.join(" / ")}`;
-  }
-
-  if ("query" in input && typeof input.query === "string") {
-    return input.query;
-  }
-
-  return undefined;
-}
-
-function getToolOutputCount(part: unknown) {
-  if (!part || typeof part !== "object" || !("output" in part))
-    return undefined;
-  return Array.isArray(part.output) ? part.output.length : undefined;
-}
-
-function getCanvasDocumentFromToolInput(part: unknown) {
-  if (!part || typeof part !== "object" || !("input" in part)) return undefined;
-
-  const parsed = canvasDocumentSchema.safeParse(part.input);
-  return parsed.success ? parsed.data : undefined;
-}
-
-function getCanvasRenderDetail(part: unknown) {
-  if (!part || typeof part !== "object") return undefined;
-
-  if ("output" in part && part.output && typeof part.output === "object") {
-    const output = part.output;
-    const blockCount =
-      "blockCount" in output && typeof output.blockCount === "number"
-        ? output.blockCount
-        : undefined;
-    const title =
-      "title" in output && typeof output.title === "string"
-        ? output.title
-        : undefined;
-
-    if (blockCount && title) {
-      return `${title} · ${blockCount} ${blockCount === 1 ? "block" : "blocks"}`;
-    }
-    if (blockCount) {
-      return `${blockCount} ${blockCount === 1 ? "block" : "blocks"}`;
-    }
-    if (title) return title;
-  }
-
-  return getToolInputString(part, "title");
-}
-
-function ToolCallStatus({
-  label,
-  doneLabel,
-  state,
-  detail,
-  resultCount,
-  canvasDocument,
-  onShowCanvas,
-}: {
-  label: string;
-  doneLabel?: string;
-  state: string;
-  detail?: string;
-  resultCount?: number;
-  canvasDocument?: CanvasDocument;
-  onShowCanvas?: (canvasDocument: CanvasDocument) => void;
-}) {
-  const isDone = state === "output-available";
-  const isError = state === "output-error";
-  const displayLabel = isDone && doneLabel ? doneLabel : label;
-
+function PeekComposer({ onActivate }: { onActivate: () => void }) {
   return (
-    <div className="border-border bg-muted/40 text-muted-foreground rounded-2xl border px-3 py-2 text-xs">
-      <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            "size-1.5 rounded-full",
-            isError
-              ? "bg-destructive"
-              : isDone
-                ? "bg-primary"
-                : "bg-primary animate-pulse",
-          )}
-        />
-        <span className="text-foreground font-medium">{displayLabel}</span>
-        <span className="font-mono uppercase">{isDone ? "done" : state}</span>
-        {isDone && canvasDocument && onShowCanvas && (
-          <button
-            type="button"
-            onClick={() => onShowCanvas(canvasDocument)}
-            className="hover:text-foreground focus-visible:ring-ring ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-            aria-label={`Show canvas: ${canvasDocument.title}`}
-            title="Show this canvas again"
-          >
-            <EyeIcon className="size-3" />
-            <span>view</span>
-          </button>
-        )}
-      </div>
-      {detail && <p className="mt-1 truncate">{detail}</p>}
-      {typeof resultCount === "number" && (
-        <p className="mt-1 font-mono uppercase">
-          {resultCount} related {resultCount === 1 ? "chunk" : "chunks"}
-        </p>
-      )}
+    <div className="dark px-4 pb-4">
+      <button
+        type="button"
+        onClick={onActivate}
+        className="border-border bg-muted/40 hover:bg-muted/60 group flex w-full items-center gap-3 rounded-full border px-4 py-3 text-left transition-colors"
+      >
+        <span className="text-primary font-mono text-sm">›</span>
+        <span className="text-muted-foreground flex-1 text-sm">
+          Ask Franco anything…
+        </span>
+        <span className="bg-primary text-primary-foreground inline-flex size-7 items-center justify-center rounded-full">
+          <ArrowUpIcon className="size-4" />
+        </span>
+      </button>
     </div>
   );
 }
@@ -167,18 +58,13 @@ export type AskFrancoVariant = "card" | "embedded";
 
 export function AskFranco({
   variant = "card",
-  onBeforeAsk,
 }: {
   /**
    * "card" — standalone panel with rounded border + shadow (desktop right pane).
-   * "embedded" — flat, no chrome (rendered inside the mobile bottom sheet).
+   * "embedded" — mobile sheet mode. It renders its own peek composer when the
+   * sheet is collapsed, without unmounting the chat hook.
    */
   variant?: AskFrancoVariant;
-  /**
-   * Fires right before a message is sent. Used by the mobile sheet to snap to
-   * the half-snap so the user can see the canvas update above the sheet.
-   */
-  onBeforeAsk?: () => void;
 } = {}) {
   const {
     messages,
@@ -190,21 +76,12 @@ export function AskFranco({
     resetChat,
   } = useFrancoChat();
   const followUpPrompts = useAtomValue(followUpPromptsAtom);
-  const setCanvasDocument = useSetAtom(setCanvasDocumentAtom);
-  const sheetControl = useSheetControl();
+  const mobileChatExpanded = useAtomValue(mobileChatExpandedAtom);
+  const setMobileChatExpanded = useSetAtom(mobileChatExpandedAtom);
   const [input, setInput] = useState("");
 
   function ask(text: string) {
-    onBeforeAsk?.();
     askChat(text);
-  }
-
-  // Tool-call "view" handler: swap the canvas, then drop the mobile sheet to
-  // half so the canvas is visible above it. On desktop the sheet action is a
-  // safe no-op (the sheet isn't mounted).
-  function handleShowCanvas(canvasDocument: CanvasDocument) {
-    setCanvasDocument(canvasDocument);
-    sheetControl.revealCanvas();
   }
 
   const hasConversation = messages.length > 0;
@@ -222,6 +99,10 @@ export function AskFranco({
     if (!message.text.trim()) return;
     ask(message.text);
     setInput("");
+  }
+
+  if (variant === "embedded" && !mobileChatExpanded) {
+    return <PeekComposer onActivate={() => setMobileChatExpanded(true)} />;
   }
 
   return (
@@ -283,46 +164,11 @@ export function AskFranco({
                       </MessageResponse>
                     );
                   }
-                  if (part.type === "tool-searchFrancoKnowledge") {
-                    return (
-                      <ToolCallStatus
-                        key={`${message.id}-${i}`}
-                        label="Searching Franco knowledge"
-                        state={part.state}
-                        detail={getKnowledgeSearchDetail(part)}
-                        resultCount={getToolOutputCount(part)}
-                      />
-                    );
+
+                  if (isRenderableToolPart(part)) {
+                    return <ToolPart key={`${message.id}-${i}`} part={part} />;
                   }
-                  if (part.type === "tool-renderCanvasDocument") {
-                    return (
-                      <ToolCallStatus
-                        key={`${message.id}-${i}`}
-                        label="Composing canvas"
-                        doneLabel="Canvas ready"
-                        state={part.state}
-                        detail={getCanvasRenderDetail(part)}
-                        canvasDocument={getCanvasDocumentFromToolInput(part)}
-                        onShowCanvas={handleShowCanvas}
-                      />
-                    );
-                  }
-                  if (part.type === "tool-generateFollowUps") {
-                    return null;
-                  }
-                  if (part.type === "tool-showKnownCanvas") {
-                    return (
-                      <ToolCallStatus
-                        key={`${message.id}-${i}`}
-                        label="Loading canvas"
-                        doneLabel="Canvas ready"
-                        state={part.state}
-                        detail={getToolInputString(part, "view")}
-                        canvasDocument={getCanvasDocumentFromToolInput(part)}
-                        onShowCanvas={handleShowCanvas}
-                      />
-                    );
-                  }
+
                   return null;
                 })}
               </MessageContent>
