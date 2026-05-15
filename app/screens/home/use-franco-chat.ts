@@ -4,8 +4,10 @@ import { useSetAtom } from "jotai";
 import {
   resetCanvasDocumentAtom,
   resetFollowUpPromptsAtom,
+  setCanvasActivityAtom,
   setCanvasDocumentAtom,
   setFollowUpPromptsAtom,
+  type CanvasActivity,
 } from "~/lib/canvas-atoms";
 import { useRootLoader } from "~/hooks/use-root-loader";
 import type { CanvasDocument } from "~/lib/canvas-document";
@@ -16,6 +18,7 @@ export type FrancoChat = ReturnType<typeof useFrancoChat>;
 export function useFrancoChat() {
   const { conversation } = useRootLoader();
   const setCanvasDocument = useSetAtom(setCanvasDocumentAtom);
+  const setCanvasActivity = useSetAtom(setCanvasActivityAtom);
   const setFollowUpPrompts = useSetAtom(setFollowUpPromptsAtom);
   const resetCanvasDocument = useSetAtom(resetCanvasDocumentAtom);
   const resetFollowUpPrompts = useSetAtom(resetFollowUpPromptsAtom);
@@ -37,6 +40,12 @@ export function useFrancoChat() {
         },
       }),
       onData: (part) => {
+        if (part.type === "data-canvasActivity") {
+          const next = part.data as CanvasActivity;
+          if (next) {
+            setCanvasActivity(next);
+          }
+        }
         if (part.type === "data-canvas") {
           const next = (part.data as { canvasDocument?: CanvasDocument })
             ?.canvasDocument;

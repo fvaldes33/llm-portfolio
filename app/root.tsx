@@ -13,7 +13,29 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { loadConversationMessages } from "./server/chat/persistence";
 import { getSession } from "./server/session";
 
-export const links: Route.LinksFunction = () => [];
+const GA_MEASUREMENT_ID = "G-67KNQRX2RV";
+
+export const links: Route.LinksFunction = () => [
+  { rel: "icon", href: "/favicon/favicon.ico", sizes: "any" },
+  {
+    rel: "icon",
+    type: "image/png",
+    sizes: "32x32",
+    href: "/favicon/favicon-32x32.png",
+  },
+  {
+    rel: "icon",
+    type: "image/png",
+    sizes: "16x16",
+    href: "/favicon/favicon-16x16.png",
+  },
+  {
+    rel: "apple-touch-icon",
+    sizes: "180x180",
+    href: "/favicon/apple-icon-180x180.png",
+  },
+  { rel: "manifest", href: "/favicon/manifest.json" },
+];
 
 export async function loader({ request }: Route.LoaderArgs) {
   const session = await getSession(request.headers.get("Cookie"));
@@ -38,6 +60,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+        {import.meta.env.PROD && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_MEASUREMENT_ID}');`,
+              }}
+            />
+          </>
+        )}
       </head>
       <body>
         <TooltipProvider>{children}</TooltipProvider>

@@ -3,6 +3,7 @@ import { atomWithStorage, createJSONStorage, RESET } from "jotai/utils";
 import {
   canvasDocumentSchema,
   type CanvasDocument,
+  type CanvasDocumentOutput,
 } from "~/lib/canvas-document";
 import { welcomeCanvasDocument } from "~/lib/canvas-documents";
 
@@ -74,13 +75,30 @@ export const followUpPromptsAtom = atomWithStorage<FollowUpPrompt[]>(
 
 export const setCanvasDocumentAtom = atom(
   null,
-  (_get, set, canvasDocument: CanvasDocument) => {
+  async (_get, set, canvasDocument: CanvasDocument) => {
     set(canvasDocumentAtom, canvasDocument);
   },
 );
 
 export const resetCanvasDocumentAtom = atom(null, (_get, set) => {
   set(canvasDocumentAtom, RESET);
+  set(canvasActivityAtom, { state: "idle" });
+});
+
+export type CanvasActivity =
+  | { state: "idle" }
+  | { state: "pending"; intent: CanvasDocument["intent"] }
+  | { state: "generated" };
+
+export const canvasActivityAtom = atom<CanvasActivity>({ state: "idle" });
+export const setCanvasActivityAtom = atom(
+  null,
+  (_get, set, activity: CanvasActivity) => {
+    set(canvasActivityAtom, activity);
+  },
+);
+export const resetCanvasActivityAtom = atom(null, (_get, set) => {
+  set(canvasActivityAtom, { state: "idle" });
 });
 
 export const setFollowUpPromptsAtom = atom(

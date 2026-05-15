@@ -69,6 +69,7 @@ export const francoTools = {
         projects: projectsCanvasDocument,
       } satisfies Record<typeof view, CanvasDocument>;
 
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       const canvasDocument = documents[view];
       getFrancoToolContext(experimental_context).writeCanvas(canvasDocument);
       return {
@@ -102,6 +103,7 @@ export const francoTools = {
       "Render a custom structured UI document in the left panel. This is the primary generative UI tool and should be used on most substantive turns. Compose a concise AST from allowed blocks only using known/retrieved Franco facts. Great for stories, timelines, leadership answers, AI beliefs, career transitions, project comparisons, Safety Radar, baseball, origin, or any answer with multiple distinct facts. Never include private details, ARR, children's names, exact address, private customer names, or internal Safety Radar metrics.",
     inputSchema: canvasDocumentSchema,
     execute: async (canvasDocument, { experimental_context }) => {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       getFrancoToolContext(experimental_context).writeCanvas(canvasDocument);
       return {
         status: "rendered",

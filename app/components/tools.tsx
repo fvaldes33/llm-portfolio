@@ -15,6 +15,7 @@ import {
   projectsCanvasDocument,
   welcomeCanvasDocument,
 } from "~/lib/canvas-documents";
+import { analytics } from "~/lib/analytics";
 import { cn } from "~/lib/utils";
 import type { FrancoUIMessage } from "~/lib/chat/types";
 
@@ -50,7 +51,11 @@ const KNOWN_CANVASES = {
 function useViewCanvas() {
   const setCanvasDocument = useSetAtom(setCanvasDocumentAtom);
   const setMobileChatExpanded = useSetAtom(mobileChatExpandedAtom);
-  return (canvasDocument: CanvasDocument) => {
+  return (canvasDocument: CanvasDocument, toolType: "custom" | "known") => {
+    analytics.canvasViewedFromTool({
+      canvasTitle: canvasDocument.title,
+      toolType,
+    });
     setCanvasDocument(canvasDocument);
     setMobileChatExpanded(false);
   };
@@ -164,7 +169,7 @@ export function RenderCanvasDocument({
           ? `${title} · ${blockCount} ${blockCount === 1 ? "block" : "blocks"}`
           : title
       }
-      onView={doc ? () => viewCanvas(doc) : undefined}
+      onView={doc ? () => viewCanvas(doc, "custom") : undefined}
     />
   );
 }
@@ -173,6 +178,7 @@ export function ShowKnownCanvas({ part }: { part: ShowKnownCanvasPart }) {
   const viewCanvas = useViewCanvas();
   const view = part.input?.view;
   const doc = view ? KNOWN_CANVASES[view] : undefined;
+  const title = part.output?.title ?? doc?.title;
 
   return (
     <ToolChip
@@ -180,8 +186,8 @@ export function ShowKnownCanvas({ part }: { part: ShowKnownCanvasPart }) {
         part.state === "output-available" ? "Showed canvas" : "Opening canvas"
       }
       state={part.state}
-      detail={part.output?.title ?? doc?.title}
-      onView={doc ? () => viewCanvas(doc) : undefined}
+      detail={title}
+      onView={doc ? () => viewCanvas(doc, "known") : undefined}
     />
   );
 }

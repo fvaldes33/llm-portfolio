@@ -80,7 +80,7 @@ export const canvasProjectListBlockSchema = z.object({
     z.object({
       name: z.string(),
       description: z.string(),
-      href: z.string().url().optional(),
+      href: z.url().optional(),
       meta: z.string().optional(),
     }),
   ),
@@ -117,6 +117,11 @@ export type CanvasLocation = z.infer<typeof canvasLocationSchema>;
 export type CanvasBlock = z.infer<typeof canvasBlockSchema>;
 export type CanvasDocument = z.infer<typeof canvasDocumentSchema>;
 export type CanvasIntent = z.infer<typeof canvasIntentSchema>;
+export type CanvasDocumentOutput = {
+  status: "rendered";
+  title: string;
+  blockCount: number;
+};
 
 // individual block types
 export type CanvasHeroBlock = z.infer<typeof canvasHeroBlockSchema>;

@@ -125,6 +125,45 @@ export async function action({ request }: Route.ActionArgs) {
         messages: modelMessages,
         stopWhen: stepCountIs(8),
         tools: francoTools,
+        experimental_onToolCallStart: (event) => {
+          if (event.toolCall.toolName === "renderCanvasDocument") {
+            writer.write({
+              type: "data-canvasActivity",
+              data: { state: "pending", intent: "custom" },
+              transient: true,
+            });
+          }
+          if (event.toolCall.toolName === "showKnownCanvas") {
+            writer.write({
+              type: "data-canvasActivity",
+              transient: true,
+              data: {
+                state: "pending",
+                intent: event.toolCall.input as
+                  | "welcome"
+                  | "locations"
+                  | "current"
+                  | "projects",
+              },
+            });
+          }
+        },
+        experimental_onToolCallFinish: (event) => {
+          if (event.toolCall.toolName === "renderCanvasDocument") {
+            writer.write({
+              type: "data-canvasActivity",
+              data: { state: "generated" },
+              transient: true,
+            });
+          }
+          if (event.toolCall.toolName === "showKnownCanvas") {
+            writer.write({
+              type: "data-canvasActivity",
+              data: { state: "generated" },
+              transient: true,
+            });
+          }
+        },
         experimental_context: {
           writeCanvas: (canvasDocument: CanvasDocument) => {
             writer.write({

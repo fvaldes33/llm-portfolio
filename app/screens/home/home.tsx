@@ -6,6 +6,7 @@ import { AskFranco } from "./ask-franco";
 import { MobileChatSheet } from "./mobile-chat-sheet";
 import { ClientOnly } from "~/components/client-only";
 import { Loader } from "~/components/loader";
+import { CanvasIndicator } from "~/components/canvas-indicator";
 
 export function HomeScreen() {
   const isMobile = useIsMobile();
@@ -31,6 +32,7 @@ function DesktopLayout() {
               <Canvas />
             </div>
           </ScrollArea>
+          <CanvasIndicator />
         </div>
         <div className="lg:h-auto lg:min-h-0">
           <AskFranco />
@@ -45,8 +47,9 @@ function MobileLayout() {
     <div className="flex flex-1 flex-col">
       {/* Canvas gets bottom padding equal to the sheet's peek snap (20dvh)
           plus a buffer so the last content clears the composer. */}
-      <div className="flex-1 px-4 pt-2 pb-[calc(20dvh+1.5rem)]">
+      <div className="relative flex-1 px-4 pt-10 pb-[calc(20dvh+1.5rem)]">
         <Canvas />
+        <CanvasIndicator />
       </div>
       <MobileChatSheet />
     </div>

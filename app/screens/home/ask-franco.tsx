@@ -1,6 +1,6 @@
 import { ArrowUpIcon, RefreshCwIcon, RotateCcwIcon } from "lucide-react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -26,6 +26,7 @@ import {
   followUpPromptsAtom,
   mobileChatExpandedAtom,
 } from "~/lib/canvas-atoms";
+import { analytics } from "~/lib/analytics";
 import { SUGGESTED_PROMPTS } from "~/lib/franco-knowledge";
 import { cn } from "~/lib/utils";
 import { useFrancoChat } from "./use-franco-chat";
@@ -35,11 +36,16 @@ const seedText =
   "I'm Franco — Director of Engineering at Safety Radar. Ask anything, or pick a question.";
 
 function PeekComposer({ onActivate }: { onActivate: () => void }) {
+  function handleActivate() {
+    analytics.chatOpened("peek_composer");
+    onActivate();
+  }
+
   return (
     <div className="dark px-4 pb-4">
       <button
         type="button"
-        onClick={onActivate}
+        onClick={handleActivate}
         className="border-border bg-muted/40 hover:bg-muted/60 group flex w-full items-center gap-3 rounded-full border px-4 py-3 text-left transition-colors"
       >
         <span className="text-primary font-mono text-sm">›</span>
@@ -80,7 +86,17 @@ export function AskFranco({
   const setMobileChatExpanded = useSetAtom(mobileChatExpandedAtom);
   const [input, setInput] = useState("");
 
-  function ask(text: string) {
+  function ask(
+    text: string,
+    source: "composer" | "follow_up" | "suggested_prompt" = "composer",
+    promptLabel?: string,
+  ) {
+    analytics.chatMessageSent({
+      source,
+      promptLabel,
+      characterCount: text.trim().length,
+      hasConversation,
+    });
     askChat(text);
   }
 
@@ -94,6 +110,10 @@ export function AskFranco({
     (!lastMessage ||
       lastMessage.role === "user" ||
       (lastMessage.role === "assistant" && !lastAssistantHasText));
+
+  useEffect(() => {
+    if (error) analytics.chatErrorShown(error.message);
+  }, [error]);
 
   function handleSubmit(message: PromptInputMessage) {
     if (!message.text.trim()) return;
@@ -129,7 +149,10 @@ export function AskFranco({
           {hasConversation && (
             <button
               type="button"
-              onClick={() => void resetChat()}
+              onClick={() => {
+                analytics.chatResetClicked(messages.length);
+                void resetChat();
+              }}
               disabled={busy}
               className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
               title="Reset chat"
@@ -187,7 +210,10 @@ export function AskFranco({
                 <p>Something went wrong. {error.message}</p>
                 <button
                   type="button"
-                  onClick={() => void retryLastResponse()}
+                  onClick={() => {
+                    analytics.chatRetryClicked(messages.length);
+                    void retryLastResponse();
+                  }}
                   disabled={busy || messages.length === 0}
                   className="hover:bg-destructive/10 focus-visible:ring-ring inline-flex shrink-0 items-center gap-1.5 rounded-full border border-current/25 px-2.5 py-1 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                 >
@@ -209,14 +235,14 @@ export function AskFranco({
                   <Suggestion
                     key={p.prompt}
                     suggestion={p.label}
-                    onClick={() => ask(p.prompt)}
+                    onClick={() => ask(p.prompt, "follow_up", p.label)}
                   />
                 ))
               : SUGGESTED_PROMPTS.map((p) => (
                   <Suggestion
                     key={p.text}
                     suggestion={p.text}
-                    onClick={(s) => ask(s)}
+                    onClick={(s) => ask(s, "suggested_prompt", s)}
                   />
                 ))}
           </Suggestions>
