@@ -20,15 +20,15 @@ export function FrancoLogo(props: ComponentProps<"svg">) {
         <path d="M0 23.375H10.625V34H0V23.375Z" fill="currentColor" />
         <path
           d="M33.8937 0H49.464L44.5187 10.625H33.8937V0Z"
-          className="fill-muted-foreground"
+          className="fill-primary"
         />
         <path
           d="M33.8937 11.6875H44.5187L34.305 34H33.8937V11.6875Z"
-          className="fill-muted-foreground"
+          className="fill-primary"
         />
         <path
           d="M32.8312 11.6875H22.2062L32.4199 34H32.8312V11.6875Z"
-          className="fill-muted-foreground"
+          className="fill-primary"
         />
       </g>
     </svg>

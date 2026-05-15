@@ -2,7 +2,7 @@ import type { CanvasMomentGridBlock } from "~/lib/canvas-document";
 
 export function MomentGrid({ block }: { block: CanvasMomentGridBlock }) {
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2">
       {block.items.map((item) => (
         <div
           key={`${item.eyebrow}-${item.title}`}

@@ -6,23 +6,73 @@ export const welcomeCanvasDocument: CanvasDocument = {
   blocks: [
     {
       type: "hero",
-      eyebrow: "Franco Valdes",
-      title: "Tenacity in production.",
-      body: "Director of Engineering at Safety Radar. Former pro catcher, Cuban-American, father of four. I build AI products and lead small teams through ambiguity.",
+      eyebrow: "Franco Xavier Valdes",
+      title: "Builder. Leader. Entreprenuer.",
+      body: "I lead engineering at Safety Radar, build products on the side, and help small teams turn ambiguous problems into useful software that ships.",
+    },
+    {
+      type: "statGrid",
+      items: [
+        {
+          label: "Current",
+          value: "Safety Radar",
+          detail: "Director of Engineering, founding team",
+        },
+        {
+          label: "Built",
+          value: "15+ years",
+          detail: "Software, product, AI, and engineering teams",
+        },
+        {
+          label: "Origin",
+          value: "Miami → Charlotte",
+          detail: "Cuban-American, raising a family in NC",
+        },
+        {
+          label: "Open to",
+          value: "Advising + consulting",
+          detail: "AI implementation, Expo apps, leadership, podcasts",
+        },
+      ],
+    },
+    {
+      type: "momentGrid",
+      items: [
+        {
+          eyebrow: "Builder",
+          title: "Products, not theater",
+          body: "Safety Radar by day, side products when the problem will not leave me alone: Momwise, Carta Maps, and FestKit all came from real friction.",
+        },
+        {
+          eyebrow: "Leader",
+          title: "Small teams, clear ownership",
+          body: "I like direct feedback, low bureaucracy, fewer meetings, and people who can turn ambiguity into a plan without making it political.",
+        },
+        {
+          eyebrow: "AI operator",
+          title: "Context beats model worship",
+          body: "The best AI products start with the user's problem, clean retrieval, tight workflows, and boring repeatable work that should not need a human every time.",
+        },
+      ],
     },
     {
       type: "tagList",
+      label: "Ask me about",
       items: [
         "Safety Radar",
-        "founding team",
-        "15+ years building",
-        "Miami → Charlotte",
+        "AI product strategy",
+        "founding engineering",
+        "side projects",
+        "Momwise",
+        "Carta Maps",
+        "FestKit",
+        "engineering leadership",
       ],
     },
     {
       type: "callout",
-      title: "Try the chat",
-      text: "Ask where I am from, what I am building now, what baseball taught me, or whether I am open to consulting.",
+      title: "This site is a showcase, not a resume wall.",
+      text: "Ask a question. Ask a question and AI will answer based on thousands of data points about me, my story and my work.",
       tone: "primary",
     },
   ],

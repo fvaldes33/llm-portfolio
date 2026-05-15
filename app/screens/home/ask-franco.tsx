@@ -221,8 +221,7 @@ export function AskFranco({
             </button>
           )}
           <p className="text-muted-foreground font-mono text-[0.65rem] tracking-[0.25em] uppercase">
-            live <span className="hidden sm:inline">·</span>{" "}
-            <span className="hidden sm:inline">trained by me</span>
+            live
           </p>
         </div>
       </div>

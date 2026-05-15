@@ -12,7 +12,7 @@ export function Header() {
           </span>
         </a>
         <Button asChild size="sm" className="rounded-full px-4">
-          <a href="mailto:franco@appvents.com">Email Franco</a>
+          <a href="mailto:franco@appvents.com">Contact</a>
         </Button>
       </nav>
     </header>
