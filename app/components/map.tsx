@@ -36,7 +36,7 @@ export function Map({ block }: { block: CanvasMapBlock }) {
           )}
         </div>
       )}
-      <div className="border-border bg-muted/25 relative aspect-video h-96 min-h-96 flex-1 overflow-hidden rounded-[2rem] border">
+      <div className="border-border bg-muted/25 relative aspect-square flex-1 overflow-hidden rounded-[2rem] border sm:aspect-video sm:h-96 sm:min-h-96">
         {!mapStyle && (
           <div className="absolute inset-0 grid place-items-center p-6 text-center">
             <div>

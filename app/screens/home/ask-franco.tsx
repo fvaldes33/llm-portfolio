@@ -29,6 +29,7 @@ import {
 } from "~/lib/canvas-document";
 import { SUGGESTED_PROMPTS } from "~/lib/franco-knowledge";
 import { cn } from "~/lib/utils";
+import { useSheetControl } from "~/hooks/use-sheet-control";
 import { useFrancoChat } from "./use-franco-chat";
 
 const seedText =
@@ -126,11 +127,48 @@ function ToolCallStatus({
   );
 }
 
-export function AskFranco() {
-  const { messages, ask, busy, status, error, resetChat } = useFrancoChat();
+export type AskFrancoVariant = "card" | "embedded";
+
+export function AskFranco({
+  variant = "card",
+  onBeforeAsk,
+}: {
+  /**
+   * "card" — standalone panel with rounded border + shadow (desktop right pane).
+   * "embedded" — flat, no chrome (rendered inside the mobile bottom sheet).
+   */
+  variant?: AskFrancoVariant;
+  /**
+   * Fires right before a message is sent. Used by the mobile sheet to snap to
+   * the half-snap so the user can see the canvas update above the sheet.
+   */
+  onBeforeAsk?: () => void;
+} = {}) {
+  const {
+    messages,
+    ask: askChat,
+    busy,
+    status,
+    error,
+    resetChat,
+  } = useFrancoChat();
   const followUpPrompts = useAtomValue(followUpPromptsAtom);
   const setCanvasDocument = useSetAtom(setCanvasDocumentAtom);
+  const sheetControl = useSheetControl();
   const [input, setInput] = useState("");
+
+  function ask(text: string) {
+    onBeforeAsk?.();
+    askChat(text);
+  }
+
+  // Tool-call "view" handler: swap the canvas, then drop the mobile sheet to
+  // half so the canvas is visible above it. On desktop the sheet action is a
+  // safe no-op (the sheet isn't mounted).
+  function handleShowCanvas(canvasDocument: CanvasDocument) {
+    setCanvasDocument(canvasDocument);
+    sheetControl.revealCanvas();
+  }
 
   const hasConversation = messages.length > 0;
   const lastMessage = messages[messages.length - 1];
@@ -150,7 +188,13 @@ export function AskFranco() {
   }
 
   return (
-    <div className="dark bg-background text-foreground border-border flex h-full flex-col overflow-hidden rounded-3xl border shadow-2xl">
+    <div
+      className={cn(
+        "dark flex h-full flex-col overflow-hidden",
+        variant === "card" &&
+          "bg-background text-foreground border-border rounded-3xl border shadow-2xl",
+      )}
+    >
       <div className="border-border flex items-center justify-between gap-4 border-b px-6 py-4">
         <div className="flex items-center gap-3">
           <span className="bg-primary relative inline-block size-2 rounded-full">
@@ -160,7 +204,7 @@ export function AskFranco() {
             />
           </span>
           <p className="text-foreground text-sm font-semibold">
-            Ask Me Anything
+            Ask Me <span className="hidden sm:inline">Anything</span>
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -177,7 +221,8 @@ export function AskFranco() {
             </button>
           )}
           <p className="text-muted-foreground font-mono text-[0.65rem] tracking-[0.25em] uppercase">
-            live · trained by me
+            live <span className="hidden sm:inline">·</span>{" "}
+            <span className="hidden sm:inline">trained by me</span>
           </p>
         </div>
       </div>
@@ -222,7 +267,7 @@ export function AskFranco() {
                         state={part.state}
                         detail={getToolInputString(part, "title")}
                         canvasDocument={getCanvasDocumentFromToolPart(part)}
-                        onShowCanvas={setCanvasDocument}
+                        onShowCanvas={handleShowCanvas}
                       />
                     );
                   }
@@ -238,7 +283,7 @@ export function AskFranco() {
                         state={part.state}
                         detail={getToolInputString(part, "view")}
                         canvasDocument={getCanvasDocumentFromToolPart(part)}
-                        onShowCanvas={setCanvasDocument}
+                        onShowCanvas={handleShowCanvas}
                       />
                     );
                   }
@@ -260,7 +305,7 @@ export function AskFranco() {
             </div>
           )}
         </ConversationContent>
-        <ConversationScrollButton />
+        <ConversationScrollButton className="text-foreground!" />
       </Conversation>
 
       {(!hasConversation || followUpPrompts.length > 0) && (
@@ -293,6 +338,7 @@ export function AskFranco() {
               onChange={(e) => setInput(e.currentTarget.value)}
               placeholder="Ask anything…"
               maxLength={1500}
+              className="text-foreground!"
             />
           </PromptInputBody>
           <PromptInputFooter>
