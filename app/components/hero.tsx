@@ -8,7 +8,7 @@ export function Hero({ block }: { block: CanvasHeroBlock }) {
           {block.eyebrow}
         </p>
       )}
-      <h1 className="mt-5 max-w-4xl text-[clamp(3rem,6.8vw,6.75rem)] leading-none font-black tracking-[-0.06em] text-balance">
+      <h1 className="mt-5 max-w-4xl text-[clamp(3rem,6.8vw,5rem)] leading-none font-black tracking-[-0.06em] text-balance">
         {block.title}
       </h1>
       {block.body && (

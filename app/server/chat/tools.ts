@@ -10,7 +10,7 @@ import {
   projectsCanvasDocument,
   welcomeCanvasDocument,
 } from "~/lib/canvas-documents";
-import { retrieveFrancoKnowledge } from "~/server/knowledge/retrieval";
+import { retrieveFrancoKnowledgeMany } from "~/server/knowledge/retrieval";
 
 export type FollowUpPrompt = {
   label: string;
@@ -32,25 +32,32 @@ function getFrancoToolContext(context: unknown) {
 export const francoTools = {
   searchFrancoKnowledge: tool({
     description:
-      "Search Franco's embedded knowledge base with a targeted query. Use this when the initial retrieved context is not specific enough, when the user asks a follow-up that needs a different angle, or before composing a custom canvas that needs precise facts. Try focused queries like 'baseball catcher leadership', 'Momwise app stack', 'Safety Radar workflow editor', or 'Union Craft CMS design system'.",
+      "Search Franco's embedded knowledge base with 1-4 focused semantic queries in parallel. Use this heavily before answering substantive questions or composing a custom canvas. Do not pass the raw user message and do not create one overloaded kitchen-sink query. Split different angles into separate short queries that match likely knowledge-file language. Good query sets: ['athlete to engineer transition dealership review system', 'Rock Slide Xpient Union first engineering job']; ['Team USA 16U 2004 trials', '2005 Monterrey Mexico silver Cuba']; ['family work balance father four kids', 'Momwise mental load parenting assistant', 'leadership meetings wasted motion small teams'].",
     inputSchema: z.object({
-      query: z.string().min(2),
-      limit: z.number().int().min(1).max(10).default(5),
+      queries: z.array(z.string().min(2)).min(1).max(4),
+      limitPerQuery: z.number().int().min(1).max(8).default(4),
+      maxResults: z.number().int().min(1).max(12).default(8),
     }),
-    execute: async ({ query, limit }) => {
-      const chunks = await retrieveFrancoKnowledge(query, limit);
+    execute: async ({ queries, limitPerQuery, maxResults }) => {
+      const chunks = await retrieveFrancoKnowledgeMany({
+        queries,
+        limitPerQuery,
+        maxResults,
+      });
+
       return chunks.map((chunk) => ({
         title: chunk.documentTitle,
         sourcePath: chunk.sourcePath,
         heading: chunk.heading,
         content: chunk.content,
         similarity: chunk.similarity,
+        matchedQueries: chunk.matchedQueries,
       }));
     },
   }),
   showKnownCanvas: tool({
     description:
-      "Render one of Franco's known high-quality left-panel canvases. Use mainly for reset/welcome or when the user asks a very common broad topic. For nuanced answers, prefer searchFrancoKnowledge followed by renderCanvasDocument.",
+      "Render one of Franco's known high-quality left-panel canvases. Use when the user intent exactly matches a broad known view: welcome/reset, locations, current role/Safety Radar, or side projects. For nuanced answers, prefer renderCanvasDocument.",
     inputSchema: z.object({
       view: z.enum(["welcome", "locations", "current", "projects"]),
     }),
@@ -92,7 +99,7 @@ export const francoTools = {
   }),
   renderCanvasDocument: tool({
     description:
-      "Render a custom structured UI document in the left panel. This is the main generative UI tool. Compose a concise AST from allowed blocks only using known/retrieved Franco facts. Never include private details, ARR, children's names, exact address, private customer names, or internal Safety Radar metrics.",
+      "Render a custom structured UI document in the left panel. This is the primary generative UI tool and should be used on most substantive turns. Compose a concise AST from allowed blocks only using known/retrieved Franco facts. Great for stories, timelines, leadership answers, AI beliefs, career transitions, project comparisons, Safety Radar, baseball, origin, or any answer with multiple distinct facts. Never include private details, ARR, children's names, exact address, private customer names, or internal Safety Radar metrics.",
     inputSchema: canvasDocumentSchema,
     execute: async (canvasDocument, { experimental_context }) => {
       getFrancoToolContext(experimental_context).writeCanvas(canvasDocument);

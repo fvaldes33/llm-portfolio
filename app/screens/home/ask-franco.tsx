@@ -1,4 +1,4 @@
-import { EyeIcon, RotateCcwIcon } from "lucide-react";
+import { EyeIcon, RefreshCwIcon, RotateCcwIcon } from "lucide-react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useState } from "react";
 import {
@@ -41,6 +41,28 @@ function getToolInputString(part: unknown, key: string) {
   if (!input || typeof input !== "object" || !(key in input)) return undefined;
   const value = input[key as keyof typeof input];
   return typeof value === "string" ? value : undefined;
+}
+
+function getKnowledgeSearchDetail(part: unknown) {
+  if (!part || typeof part !== "object" || !("input" in part)) return undefined;
+  const input = part.input;
+  if (!input || typeof input !== "object") return undefined;
+
+  if ("queries" in input && Array.isArray(input.queries)) {
+    const queries = input.queries.filter(
+      (query): query is string => typeof query === "string",
+    );
+    if (queries.length === 0) return undefined;
+    return queries.length === 1
+      ? queries[0]
+      : `${queries.length} search angles · ${queries.join(" / ")}`;
+  }
+
+  if ("query" in input && typeof input.query === "string") {
+    return input.query;
+  }
+
+  return undefined;
 }
 
 function getToolOutputCount(part: unknown) {
@@ -150,6 +172,7 @@ export function AskFranco({
     busy,
     status,
     error,
+    retryLastResponse,
     resetChat,
   } = useFrancoChat();
   const followUpPrompts = useAtomValue(followUpPromptsAtom);
@@ -252,7 +275,7 @@ export function AskFranco({
                         key={`${message.id}-${i}`}
                         label="Searching Franco knowledge"
                         state={part.state}
-                        detail={getToolInputString(part, "query")}
+                        detail={getKnowledgeSearchDetail(part)}
                         resultCount={getToolOutputCount(part)}
                       />
                     );
@@ -300,7 +323,18 @@ export function AskFranco({
           )}
           {error && (
             <div className="border-destructive/40 bg-destructive/10 text-destructive rounded-2xl border px-4 py-2.5 text-xs">
-              Something went wrong. {error.message}
+              <div className="flex items-center justify-between gap-3">
+                <p>Something went wrong. {error.message}</p>
+                <button
+                  type="button"
+                  onClick={() => void retryLastResponse()}
+                  disabled={busy || messages.length === 0}
+                  className="hover:bg-destructive/10 focus-visible:ring-ring inline-flex shrink-0 items-center gap-1.5 rounded-full border border-current/25 px-2.5 py-1 font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+                >
+                  <RefreshCwIcon className="size-3" />
+                  Retry
+                </button>
+              </div>
             </div>
           )}
         </ConversationContent>

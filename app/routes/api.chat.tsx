@@ -1,4 +1,3 @@
-import { anthropic } from "@ai-sdk/anthropic";
 import {
   convertToModelMessages,
   createUIMessageStream,
@@ -16,16 +15,25 @@ import {
 } from "~/server/chat/persistence";
 import { checkRateLimit, getRequestIp } from "~/server/chat/rate-limit";
 import { commitSession, getSession } from "~/server/session";
-import {
-  formatRetrievedKnowledge,
-  retrieveFrancoKnowledge,
-} from "~/server/knowledge/retrieval";
 import type { Route } from "./+types/api.chat";
+import {
+  kimiK26,
+  glm5Turbo,
+  claudeSonnet46,
+  gpt5ChatLatest,
+} from "~/server/chat/models";
 
-const MAX_MESSAGES = 20;
-const MAX_MESSAGE_CHARS = 1500;
+const MODELS = {
+  kimiK26: kimiK26,
+  glm5Turbo: glm5Turbo,
+  claudeSonnet46: claudeSonnet46,
+  gpt5ChatLatest: gpt5ChatLatest,
+};
 
-const MODEL = "claude-sonnet-4-6";
+const _MAX_MESSAGES = 20;
+const _MAX_MESSAGE_CHARS = 1500;
+
+const MODEL = MODELS.gpt5ChatLatest.modelId;
 
 export async function action({ request }: Route.ActionArgs) {
   if (request.method !== "POST") {
@@ -36,13 +44,6 @@ export async function action({ request }: Route.ActionArgs) {
   const userAgent = request.headers.get("user-agent");
   if (!(await checkRateLimit({ ip, route: "/api/chat", userAgent }))) {
     return new Response("Slow down a bit.", { status: 429 });
-  }
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return new Response(
-      "Chat is not configured yet. Set ANTHROPIC_API_KEY in your environment.",
-      { status: 503 },
-    );
   }
 
   let payload: { messages?: unknown };
@@ -56,22 +57,18 @@ export async function action({ request }: Route.ActionArgs) {
     return new Response("Bad request", { status: 400 });
   }
   const messages = payload.messages as FrancoUIMessage[];
-  if (messages.length > MAX_MESSAGES) {
-    return new Response("Conversation too long. Refresh to start over.", {
-      status: 413,
-    });
-  }
-  for (const msg of messages) {
-    for (const part of msg.parts ?? []) {
-      if (
-        part.type === "text" &&
-        typeof part.text === "string" &&
-        part.text.length > MAX_MESSAGE_CHARS
-      ) {
-        return new Response("Message too long.", { status: 413 });
-      }
-    }
-  }
+
+  // For now, we're not enforcing any limits on the number of messages or the length of the messages.
+  // if (messages.length > _MAX_MESSAGES) {
+  //   return new Response("Conversation too long. Reset to start over.", {
+  //     status: 413,
+  //   });
+  // }
+
+  // const latestUserText = getLatestUserText(messages);
+  // if (latestUserText.length > _MAX_MESSAGE_CHARS) {
+  //   return new Response("Message too long.", { status: 413 });
+  // }
 
   const session = await getSession(request.headers.get("Cookie"));
   let conversationId = session.get("conversationId");
@@ -91,10 +88,6 @@ export async function action({ request }: Route.ActionArgs) {
     }
   }
 
-  const latestUserText = getLatestUserText(messages);
-  const retrievedKnowledge = await retrieveFrancoKnowledge(latestUserText);
-  const groundedSystemPrompt = `${SYSTEM_PROMPT}\n\n# Retrieved Franco knowledge\n\nUse these retrieved chunks as the most specific source for this answer. If the chunks do not cover the question, say what you know from the core profile and do not invent details.\n\n${formatRetrievedKnowledge(retrievedKnowledge)}`;
-
   const stream = createUIMessageStream<FrancoUIMessage>({
     execute: async ({ writer }) => {
       const modelMessages = await convertToModelMessages(messages);
@@ -108,10 +101,10 @@ export async function action({ request }: Route.ActionArgs) {
         | undefined;
 
       const result = streamText({
-        model: anthropic(MODEL),
-        system: groundedSystemPrompt,
+        model: MODELS.gpt5ChatLatest,
+        system: SYSTEM_PROMPT,
         messages: modelMessages,
-        stopWhen: stepCountIs(5),
+        stopWhen: stepCountIs(8),
         tools: francoTools,
         experimental_context: {
           writeCanvas: (canvasDocument: CanvasDocument) => {
@@ -136,12 +129,14 @@ export async function action({ request }: Route.ActionArgs) {
       writer.merge(
         result.toUIMessageStream({
           originalMessages: messages,
+          generateMessageId: () => crypto.randomUUID(),
           onFinish: async ({ responseMessage, finishReason }) => {
             // Persist the final UI message, not the raw text response. This keeps
             // tool calls/results and generated data parts available after refresh.
             await persistConversationTurn({
               conversationId,
               inputMessages: messages,
+              assistantMessageId: responseMessage.id,
               assistantText: getTextFromParts(responseMessage.parts),
               assistantParts: responseMessage.parts,
               model: MODEL,

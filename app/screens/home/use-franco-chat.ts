@@ -20,10 +20,11 @@ export function useFrancoChat() {
   const resetCanvasDocument = useSetAtom(resetCanvasDocumentAtom);
   const resetFollowUpPrompts = useSetAtom(resetFollowUpPromptsAtom);
 
-  const { messages, sendMessage, setMessages, status, error } =
+  const { messages, sendMessage, regenerate, setMessages, status, error } =
     useChat<FrancoUIMessage>({
       ...(conversation.id ? { id: conversation.id } : {}),
       messages: conversation.messages,
+      generateId: () => crypto.randomUUID(),
       transport: new DefaultChatTransport({ api: "/api/chat" }),
       onData: (part) => {
         if (part.type === "data-canvas") {
@@ -60,6 +61,11 @@ export function useFrancoChat() {
     sendMessage({ text: trimmed });
   }
 
+  async function retryLastResponse() {
+    if (busy || messages.length === 0) return;
+    await regenerate();
+  }
+
   async function resetChat() {
     if (busy) return;
 
@@ -77,5 +83,5 @@ export function useFrancoChat() {
     }
   }
 
-  return { messages, status, error, ask, busy, resetChat };
+  return { messages, status, error, ask, busy, retryLastResponse, resetChat };
 }

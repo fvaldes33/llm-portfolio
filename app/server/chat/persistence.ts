@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { asc, count, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { FrancoUIMessage } from "~/lib/chat/types";
 import { getDb } from "~/server/db";
 import { chatConversations, chatMessages } from "~/server/db/schema";
@@ -76,6 +76,7 @@ export async function resetConversationMessages(conversationId?: string) {
 export async function persistConversationTurn({
   conversationId,
   inputMessages,
+  assistantMessageId,
   assistantText,
   assistantParts,
   model,
@@ -86,6 +87,7 @@ export async function persistConversationTurn({
 }: {
   conversationId?: string;
   inputMessages: FrancoUIMessage[];
+  assistantMessageId?: string;
   assistantText: string;
   assistantParts: UIMessage["parts"];
   model: string;
@@ -101,27 +103,26 @@ export async function persistConversationTurn({
     .find((message) => message.role === "user");
   if (!latestUserMessage) return;
 
-  const [{ value: orderStart }] = await getDb()
-    .select({ value: count() })
-    .from(chatMessages)
-    .where(eq(chatMessages.conversationId, conversationId));
+  const inputRows = inputMessages.map((message, index) => ({
+    id: isUuid(message.id) ? message.id : undefined,
+    conversationId,
+    role: message.role,
+    status: "success" as const,
+    content: getTextFromParts(message.parts),
+    parts: message.parts,
+    order: index,
+  }));
 
   const rows = [
+    ...inputRows,
     {
-      conversationId,
-      role: "user" as const,
-      status: "success" as const,
-      content: getTextFromParts(latestUserMessage.parts),
-      parts: latestUserMessage.parts,
-      order: orderStart,
-    },
-    {
+      id: isUuid(assistantMessageId) ? assistantMessageId : undefined,
       conversationId,
       role: "assistant" as const,
       status: "success" as const,
       content: assistantText,
       parts: assistantParts,
-      order: orderStart + 1,
+      order: inputRows.length,
       model,
       finishReason,
       promptTokens,
@@ -130,14 +131,26 @@ export async function persistConversationTurn({
     },
   ];
 
+  await getDb()
+    .delete(chatMessages)
+    .where(eq(chatMessages.conversationId, conversationId));
   await getDb().insert(chatMessages).values(rows);
   await getDb()
     .update(chatConversations)
     .set({
-      messageCount: orderStart + rows.length,
+      messageCount: rows.length,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(chatConversations.id, conversationId));
+}
+
+function isUuid(value?: string) {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  );
 }
 
 function getTextFromParts(parts: UIMessage["parts"]) {

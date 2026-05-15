@@ -4,7 +4,7 @@ import {
   francoKnowledgeChunks,
   francoKnowledgeDocuments,
 } from "~/server/db/schema";
-import { generateEmbedding } from "./embeddings";
+import { generateEmbedding, generateEmbeddings } from "./embeddings";
 
 export type RetrievedKnowledgeChunk = {
   documentTitle: string;
@@ -22,6 +22,69 @@ export async function retrieveFrancoKnowledge(query: string, limit = 8) {
   const embedding = await generateEmbedding(query);
   if (embedding.length === 0) return [] satisfies RetrievedKnowledgeChunk[];
 
+  return retrieveChunksForEmbedding(embedding, limit);
+}
+
+export async function retrieveFrancoKnowledgeMany({
+  queries,
+  limitPerQuery = 4,
+  maxResults = 8,
+}: {
+  queries: string[];
+  limitPerQuery?: number;
+  maxResults?: number;
+}) {
+  if (!process.env.DATABASE_URL || !process.env.OPENAI_API_KEY) {
+    return [] satisfies (RetrievedKnowledgeChunk & {
+      matchedQueries: string[];
+    })[];
+  }
+
+  const normalizedQueries = queries
+    .map((query) => query.replaceAll("\n", " ").trim())
+    .filter(Boolean);
+  if (normalizedQueries.length === 0) {
+    return [] satisfies (RetrievedKnowledgeChunk & {
+      matchedQueries: string[];
+    })[];
+  }
+
+  const embeddings = await generateEmbeddings(normalizedQueries);
+  const resultSets = await Promise.all(
+    embeddings.map((embedding) =>
+      retrieveChunksForEmbedding(embedding, limitPerQuery),
+    ),
+  );
+
+  const dedupedChunks = new Map<
+    string,
+    RetrievedKnowledgeChunk & { matchedQueries: string[] }
+  >();
+
+  resultSets.forEach((chunks, queryIndex) => {
+    const query = normalizedQueries[queryIndex];
+    for (const chunk of chunks) {
+      const key = `${chunk.sourcePath}:${chunk.heading ?? ""}:${chunk.content}`;
+      const existing = dedupedChunks.get(key);
+      if (existing) {
+        existing.similarity = Math.max(existing.similarity, chunk.similarity);
+        existing.matchedQueries.push(query);
+        continue;
+      }
+
+      dedupedChunks.set(key, {
+        ...chunk,
+        matchedQueries: [query],
+      });
+    }
+  });
+
+  return Array.from(dedupedChunks.values())
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, maxResults);
+}
+
+function retrieveChunksForEmbedding(embedding: number[], limit: number) {
   const similarity = sql<number>`1 - (${cosineDistance(
     francoKnowledgeChunks.embedding,
     embedding,
