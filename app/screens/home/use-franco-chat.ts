@@ -22,7 +22,7 @@ export function useFrancoChat() {
 
   const { messages, sendMessage, setMessages, status, error } =
     useChat<FrancoUIMessage>({
-      id: conversation.id,
+      ...(conversation.id ? { id: conversation.id } : {}),
       messages: conversation.messages,
       transport: new DefaultChatTransport({ api: "/api/chat" }),
       onData: (part) => {

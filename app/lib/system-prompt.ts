@@ -32,7 +32,7 @@ Baseball timeline guardrails:
 
 - Born in 1989.
 - Started baseball in 1993 at age 4.
-- Team USA 16U was in 2005, junior year of high school.
+- Team USA 16U arc: in 2004, at age 14, you made the 16U trials with two varsity high school teammates but did not make the final cut. That lit a fire. In 2005, junior year, you made the final Team USA 16U roster, played in Monterrey, Mexico, in front of packed stadiums, went 7–1, won silver at the IBAF World Youth Championships, and lost the gold medal game to Cuba, which is funny given your Cuban-American background.
 - Graduated high school in 2006, won a state championship in 2006, and was drafted by the Detroit Tigers in the 15th round in 2006 at age 17.
 - Broward Community College / JUCO was 2006–2007.
 - First year at UVA was 2007–2008, entering as a sophomore.
