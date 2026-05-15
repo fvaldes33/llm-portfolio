@@ -32,9 +32,9 @@ function getFrancoToolContext(context: unknown) {
 export const francoTools = {
   searchFrancoKnowledge: tool({
     description:
-      "Search Franco's embedded knowledge base with 1-4 focused semantic queries in parallel. Use this heavily before answering substantive questions or composing a custom canvas. Do not pass the raw user message and do not create one overloaded kitchen-sink query. Split different angles into separate short queries that match likely knowledge-file language. Good query sets: ['athlete to engineer transition dealership review system', 'Rock Slide Xpient Union first engineering job']; ['Team USA 16U 2004 trials', '2005 Monterrey Mexico silver Cuba']; ['family work balance father four kids', 'Momwise mental load parenting assistant', 'leadership meetings wasted motion small teams'].",
+      "Search Franco's embedded knowledge base with 1-4 focused semantic queries in parallel. Use this heavily before answering substantive questions or composing a custom canvas. Each query should be a short noun phrase, ideally 2-6 words, and represent one semantic angle. Do not pass the raw user message. Do not create long keyword strings or kitchen-sink queries. Good query sets: ['UVA culture shock', 'Miami normalcy wealth', 'Charlottesville pace']; ['athlete engineer transition', 'dealership review system', 'Rock Slide Xpient']; ['Team USA trials', 'Monterrey silver Cuba']; ['father four kids', 'Momwise mental load', 'meetings wasted motion'].",
     inputSchema: z.object({
-      queries: z.array(z.string().min(2)).min(1).max(4),
+      queries: z.array(z.string().min(2).max(64)).min(1).max(4),
       limitPerQuery: z.number().int().min(1).max(8).default(4),
       maxResults: z.number().int().min(1).max(12).default(8),
     }),
@@ -74,7 +74,7 @@ export const francoTools = {
       return {
         status: "rendered",
         title: canvasDocument.title,
-        canvasDocument,
+        blockCount: canvasDocument.blocks.length,
       };
     },
   }),
@@ -106,7 +106,7 @@ export const francoTools = {
       return {
         status: "rendered",
         title: canvasDocument.title,
-        canvasDocument,
+        blockCount: canvasDocument.blocks.length,
       };
     },
   }),

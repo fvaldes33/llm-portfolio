@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { getDb } from "~/server/db";
+import { db } from "~/server/db";
 import {
   francoKnowledgeChunks,
   francoKnowledgeDocuments,
@@ -13,8 +13,11 @@ const CONTENT_DIR = path.resolve(process.cwd(), "content/interview");
 const INGEST_EXTENSIONS = new Set([".md", ".yaml", ".yml"]);
 
 export async function ingestFrancoKnowledge() {
+  if (!db) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
   const files = await listKnowledgeFiles(CONTENT_DIR);
-  const db = getDb();
 
   for (const filePath of files) {
     const raw = await readFile(filePath, "utf8");
@@ -52,7 +55,8 @@ export async function ingestFrancoKnowledge() {
       .delete(francoKnowledgeChunks)
       .where(eq(francoKnowledgeChunks.documentId, document.id));
 
-    const chunks = chunkText(raw);
+    const cleaned = cleanKnowledgeText(raw, filePath);
+    const chunks = chunkText(cleaned);
     for (const [index, chunk] of chunks.entries()) {
       const embedding = await generateEmbedding(chunk.content);
       await db.insert(francoKnowledgeChunks).values({
@@ -81,6 +85,63 @@ async function listKnowledgeFiles(dir: string): Promise<string[]> {
   );
 
   return files.flat();
+}
+
+function cleanKnowledgeText(raw: string, filePath: string) {
+  const extension = path.extname(filePath);
+  if (extension !== ".yaml" && extension !== ".yml") return raw;
+
+  const skippedTopLevelKeys = new Set([
+    "schema_version",
+    "updated_at",
+    "source_session",
+    "answers",
+  ]);
+
+  return raw
+    .split("\n")
+    .flatMap((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return [""];
+
+      const topLevelKey = trimmed.match(/^([a-zA-Z0-9_]+):(?:\s|$)/)?.[1];
+      if (topLevelKey && skippedTopLevelKeys.has(topLevelKey)) return [];
+
+      const listKeyValue = trimmed.match(/^-\s+([a-zA-Z0-9_]+):\s*(.*)$/);
+      if (listKeyValue) {
+        return [
+          `- ${prettifyKey(listKeyValue[1])}: ${cleanScalar(listKeyValue[2])}`,
+        ];
+      }
+
+      const listValue = trimmed.match(/^-\s+(.+)$/);
+      if (listValue) return [`- ${cleanScalar(listValue[1])}`];
+
+      const keyValue = trimmed.match(/^([a-zA-Z0-9_]+):\s*(.*)$/);
+      if (keyValue) {
+        const key = prettifyKey(keyValue[1]);
+        const value = cleanScalar(keyValue[2]);
+        return value ? [`${key}: ${value}`] : ["", `${key}:`];
+      }
+
+      return [cleanScalar(trimmed)];
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function prettifyKey(value: string) {
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function cleanScalar(value: string) {
+  return value
+    .trim()
+    .replace(/^"(.*)"$/, "$1")
+    .replace(/^'(.*)'$/, "$1");
 }
 
 function chunkText(raw: string) {

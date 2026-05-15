@@ -1,5 +1,5 @@
 import { cosineDistance, desc, eq, gt, sql } from "drizzle-orm";
-import { getDb } from "~/server/db";
+import { db } from "~/server/db";
 import {
   francoKnowledgeChunks,
   francoKnowledgeDocuments,
@@ -15,7 +15,7 @@ export type RetrievedKnowledgeChunk = {
 };
 
 export async function retrieveFrancoKnowledge(query: string, limit = 8) {
-  if (!process.env.DATABASE_URL || !process.env.OPENAI_API_KEY) {
+  if (!db || !process.env.OPENAI_API_KEY) {
     return [] satisfies RetrievedKnowledgeChunk[];
   }
 
@@ -34,7 +34,7 @@ export async function retrieveFrancoKnowledgeMany({
   limitPerQuery?: number;
   maxResults?: number;
 }) {
-  if (!process.env.DATABASE_URL || !process.env.OPENAI_API_KEY) {
+  if (!db || !process.env.OPENAI_API_KEY) {
     return [] satisfies (RetrievedKnowledgeChunk & {
       matchedQueries: string[];
     })[];
@@ -85,12 +85,16 @@ export async function retrieveFrancoKnowledgeMany({
 }
 
 function retrieveChunksForEmbedding(embedding: number[], limit: number) {
+  if (!db) return [];
+
+  const MIN_SIMILARITY = 0.25;
+
   const similarity = sql<number>`1 - (${cosineDistance(
     francoKnowledgeChunks.embedding,
     embedding,
   )})`;
 
-  return getDb()
+  return db
     .select({
       documentTitle: francoKnowledgeDocuments.title,
       sourcePath: francoKnowledgeDocuments.sourcePath,
@@ -103,7 +107,7 @@ function retrieveChunksForEmbedding(embedding: number[], limit: number) {
       francoKnowledgeDocuments,
       eq(francoKnowledgeChunks.documentId, francoKnowledgeDocuments.id),
     )
-    .where(gt(similarity, 0.45))
+    .where(gt(similarity, MIN_SIMILARITY))
     .orderBy((table) => desc(table.similarity))
     .limit(limit);
 }

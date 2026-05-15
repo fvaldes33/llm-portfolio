@@ -25,7 +25,17 @@ export function useFrancoChat() {
       ...(conversation.id ? { id: conversation.id } : {}),
       messages: conversation.messages,
       generateId: () => crypto.randomUUID(),
-      transport: new DefaultChatTransport({ api: "/api/chat" }),
+      transport: new DefaultChatTransport({
+        api: "/api/chat",
+        prepareSendMessagesRequest({ messages, id }) {
+          return {
+            body: {
+              id,
+              message: messages[messages.length - 1],
+            },
+          };
+        },
+      }),
       onData: (part) => {
         if (part.type === "data-canvas") {
           const next = (part.data as { canvasDocument?: CanvasDocument })

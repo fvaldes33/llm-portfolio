@@ -1,6 +1,6 @@
 import { and, count, gte, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
-import { getDb } from "~/server/db";
+import { db } from "~/server/db";
 import { ipRateLimitHits } from "~/server/db/schema";
 
 const WINDOW_MS = 60_000;
@@ -35,11 +35,9 @@ export async function checkRateLimit({
 }) {
   const ipHash = hashIp(ip);
 
-  if (!process.env.DATABASE_URL) {
+  if (!db) {
     return fallbackRateLimit(ipHash);
   }
-
-  const db = getDb();
   const since = new Date(Date.now() - WINDOW_MS).toISOString();
   const [{ value }] = await db
     .select({ value: count() })

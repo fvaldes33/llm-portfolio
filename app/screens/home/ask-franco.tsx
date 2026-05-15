@@ -71,23 +71,37 @@ function getToolOutputCount(part: unknown) {
   return Array.isArray(part.output) ? part.output.length : undefined;
 }
 
-function getCanvasDocumentFromToolPart(part: unknown) {
+function getCanvasDocumentFromToolInput(part: unknown) {
+  if (!part || typeof part !== "object" || !("input" in part)) return undefined;
+
+  const parsed = canvasDocumentSchema.safeParse(part.input);
+  return parsed.success ? parsed.data : undefined;
+}
+
+function getCanvasRenderDetail(part: unknown) {
   if (!part || typeof part !== "object") return undefined;
 
   if ("output" in part && part.output && typeof part.output === "object") {
     const output = part.output;
-    if ("canvasDocument" in output) {
-      const parsed = canvasDocumentSchema.safeParse(output.canvasDocument);
-      if (parsed.success) return parsed.data;
+    const blockCount =
+      "blockCount" in output && typeof output.blockCount === "number"
+        ? output.blockCount
+        : undefined;
+    const title =
+      "title" in output && typeof output.title === "string"
+        ? output.title
+        : undefined;
+
+    if (blockCount && title) {
+      return `${title} · ${blockCount} ${blockCount === 1 ? "block" : "blocks"}`;
     }
+    if (blockCount) {
+      return `${blockCount} ${blockCount === 1 ? "block" : "blocks"}`;
+    }
+    if (title) return title;
   }
 
-  if ("input" in part) {
-    const parsed = canvasDocumentSchema.safeParse(part.input);
-    if (parsed.success) return parsed.data;
-  }
-
-  return undefined;
+  return getToolInputString(part, "title");
 }
 
 function ToolCallStatus({
@@ -287,8 +301,8 @@ export function AskFranco({
                         label="Composing canvas"
                         doneLabel="Canvas ready"
                         state={part.state}
-                        detail={getToolInputString(part, "title")}
-                        canvasDocument={getCanvasDocumentFromToolPart(part)}
+                        detail={getCanvasRenderDetail(part)}
+                        canvasDocument={getCanvasDocumentFromToolInput(part)}
                         onShowCanvas={handleShowCanvas}
                       />
                     );
@@ -304,7 +318,7 @@ export function AskFranco({
                         doneLabel="Canvas ready"
                         state={part.state}
                         detail={getToolInputString(part, "view")}
-                        canvasDocument={getCanvasDocumentFromToolPart(part)}
+                        canvasDocument={getCanvasDocumentFromToolInput(part)}
                         onShowCanvas={handleShowCanvas}
                       />
                     );

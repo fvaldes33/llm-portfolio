@@ -4,6 +4,7 @@ import {
   createUIMessageStreamResponse,
   stepCountIs,
   streamText,
+  validateUIMessages,
 } from "ai";
 import type { CanvasDocument } from "~/lib/canvas-document";
 import type { FrancoUIMessage } from "~/lib/chat/types";
@@ -11,7 +12,9 @@ import { francoTools } from "~/server/chat/tools";
 import { SYSTEM_PROMPT } from "~/lib/system-prompt";
 import {
   createConversation,
-  persistConversationTurn,
+  loadConversationMessages,
+  persistAssistantMessage,
+  persistUserMessage,
 } from "~/server/chat/persistence";
 import { checkRateLimit, getRequestIp } from "~/server/chat/rate-limit";
 import { commitSession, getSession } from "~/server/session";
@@ -46,17 +49,39 @@ export async function action({ request }: Route.ActionArgs) {
     return new Response("Slow down a bit.", { status: 429 });
   }
 
-  let payload: { messages?: unknown };
+  let payload: { id?: unknown; message?: unknown };
   try {
     payload = await request.json();
   } catch {
     return new Response("Bad request", { status: 400 });
   }
 
-  if (!Array.isArray(payload.messages)) {
+  const incomingMessage = getIncomingMessage(payload);
+  if (!incomingMessage) {
     return new Response("Bad request", { status: 400 });
   }
-  const messages = payload.messages as FrancoUIMessage[];
+
+  const session = await getSession(request.headers.get("Cookie"));
+  let conversationId = session.get("conversationId");
+  let setCookie: string | undefined;
+
+  if (!conversationId) {
+    const conversation = await createConversation({
+      ip,
+      userAgent,
+      model: MODEL,
+      title: getConversationTitle([incomingMessage]),
+    });
+    conversationId = conversation?.id;
+    if (conversationId) {
+      session.set("conversationId", conversationId);
+      setCookie = await commitSession(session);
+    }
+  }
+
+  const previousMessages = await loadConversationMessages(conversationId);
+  const messages = mergeIncomingMessage(previousMessages, incomingMessage);
+  const userMessageOrder = messages.length - 1;
 
   // For now, we're not enforcing any limits on the number of messages or the length of the messages.
   // if (messages.length > _MAX_MESSAGES) {
@@ -70,27 +95,21 @@ export async function action({ request }: Route.ActionArgs) {
   //   return new Response("Message too long.", { status: 413 });
   // }
 
-  const session = await getSession(request.headers.get("Cookie"));
-  let conversationId = session.get("conversationId");
-  let setCookie: string | undefined;
+  const validatedMessages = await validateUIMessages<FrancoUIMessage>({
+    messages,
+    tools: francoTools,
+  });
 
-  if (!conversationId) {
-    const conversation = await createConversation({
-      ip,
-      userAgent,
-      model: MODEL,
-      title: getConversationTitle(messages),
-    });
-    conversationId = conversation?.id;
-    if (conversationId) {
-      session.set("conversationId", conversationId);
-      setCookie = await commitSession(session);
-    }
-  }
+  await persistUserMessage({
+    conversationId,
+    message: incomingMessage,
+    order: userMessageOrder,
+    model: MODEL,
+  });
 
   const stream = createUIMessageStream<FrancoUIMessage>({
     execute: async ({ writer }) => {
-      const modelMessages = await convertToModelMessages(messages);
+      const modelMessages = await convertToModelMessages(validatedMessages);
 
       let usage:
         | {
@@ -128,14 +147,14 @@ export async function action({ request }: Route.ActionArgs) {
       result.consumeStream();
       writer.merge(
         result.toUIMessageStream({
-          originalMessages: messages,
+          originalMessages: validatedMessages,
           generateMessageId: () => crypto.randomUUID(),
           onFinish: async ({ responseMessage, finishReason }) => {
             // Persist the final UI message, not the raw text response. This keeps
             // tool calls/results and generated data parts available after refresh.
-            await persistConversationTurn({
+            await persistAssistantMessage({
               conversationId,
-              inputMessages: messages,
+              inputMessageCount: validatedMessages.length,
               assistantMessageId: responseMessage.id,
               assistantText: getTextFromParts(responseMessage.parts),
               assistantParts: responseMessage.parts,
@@ -159,6 +178,45 @@ export async function action({ request }: Route.ActionArgs) {
     stream,
     headers: setCookie ? { "Set-Cookie": setCookie } : undefined,
   });
+}
+
+function getIncomingMessage(payload: {
+  message?: unknown;
+}): FrancoUIMessage | null {
+  const message = payload.message;
+  if (isUserMessage(message)) return message;
+
+  return null;
+}
+
+function isUserMessage(value: unknown): value is FrancoUIMessage {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "role" in value &&
+    "parts" in value &&
+    typeof value.id === "string" &&
+    value.role === "user" &&
+    Array.isArray(value.parts)
+  );
+}
+
+function mergeIncomingMessage(
+  previousMessages: FrancoUIMessage[],
+  incomingMessage: FrancoUIMessage,
+) {
+  const existingIndex = previousMessages.findIndex(
+    (message) => message.id === incomingMessage.id,
+  );
+
+  if (existingIndex === -1) {
+    return [...previousMessages, incomingMessage];
+  }
+
+  // Regenerate sends a previous user message. Keep history through that user
+  // turn and drop stale assistant/tool output after it.
+  return [...previousMessages.slice(0, existingIndex), incomingMessage];
 }
 
 function getTextFromParts(parts: FrancoUIMessage["parts"]) {
