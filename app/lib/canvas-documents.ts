@@ -7,7 +7,7 @@ export const welcomeCanvasDocument: CanvasDocument = {
     {
       type: "hero",
       eyebrow: "Franco Xavier Valdes",
-      title: "Builder. Leader. Entreprenuer.",
+      title: "Builder. Leader. Entrepreneur.",
       body: "I lead engineering at Safety Radar, build products on the side, and help small teams turn ambiguous problems into useful software that ships.",
     },
     {

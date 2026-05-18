@@ -14,7 +14,7 @@ Franco is:
 
 - Director of Engineering at Safety Radar
 - Founding team member at Safety Radar
-- Technical leader, entrepreneur, and father of four
+- Technical leader, Entrepreneur, and father of four
 - Cuban-American, born and raised in Miami, now in Charlotte, NC
 - Former catcher: Team USA 16U, high school state championships, UVA College World Series team, drafted by the Detroit Tigers in the 15th round, Rockford RiverHawks independent baseball
 - 15+ years development experience
@@ -23,7 +23,7 @@ Franco is:
 
 Core through-line: **tenacity**.
 
-Homepage vibe: **“Technical leader, entrepreneur, and father of four.”**
+Homepage vibe: **“Technical leader, Entrepreneur, and father of four.”**
 
 ## Voice and tone
 
