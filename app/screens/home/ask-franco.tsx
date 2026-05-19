@@ -1,6 +1,8 @@
-import { ArrowUpIcon, RefreshCwIcon } from "lucide-react";
-import { useAtomValue, useSetAtom } from "jotai";
+import { ArrowUpIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
+import { EmailCapture } from "~/components/email-capture";
+import { useRootLoader } from "~/hooks/use-root-loader";
 import {
   Conversation,
   ConversationContent,
@@ -23,8 +25,10 @@ import {
 import { Shimmer } from "~/components/ai-elements/shimmer";
 import { Suggestion, Suggestions } from "~/components/ai-elements/suggestion";
 import {
+  emailSubmittedAtom,
   followUpPromptsAtom,
   mobileChatExpandedAtom,
+  softPromptDismissedAtom,
 } from "~/lib/canvas-atoms";
 import { analytics } from "~/lib/analytics";
 import { SUGGESTED_PROMPTS } from "~/lib/franco-knowledge";
@@ -34,6 +38,9 @@ import { isRenderableToolPart, ToolPart } from "~/components/tools";
 
 const seedText =
   "I'm Franco — Director of Engineering at Safety Radar. Ask anything, or pick a question.";
+
+const SOFT_PROMPT_AT = 5;
+const HARD_CAP_AT = 10;
 
 function PeekComposer({ onActivate }: { onActivate: () => void }) {
   function handleActivate() {
@@ -84,6 +91,38 @@ export function AskFranco({
   const mobileChatExpanded = useAtomValue(mobileChatExpandedAtom);
   const setMobileChatExpanded = useSetAtom(mobileChatExpandedAtom);
   const [input, setInput] = useState("");
+
+  const { conversation } = useRootLoader();
+  const conversationKey = conversation.id ?? "anonymous";
+  const [softPromptDismissed, setSoftPromptDismissed] = useAtom(
+    softPromptDismissedAtom,
+  );
+  const [emailSubmitted, setEmailSubmitted] = useAtom(emailSubmittedAtom);
+  const isDismissed = !!softPromptDismissed[conversationKey];
+  const hasSubmittedEmail = !!emailSubmitted[conversationKey];
+
+  const userMessageCount = messages.filter((m) => m.role === "user").length;
+  const atHardCap = userMessageCount >= HARD_CAP_AT;
+  const showSoftPrompt =
+    userMessageCount >= SOFT_PROMPT_AT &&
+    !atHardCap &&
+    !isDismissed &&
+    !hasSubmittedEmail;
+
+  useEffect(() => {
+    if (showSoftPrompt) analytics.emailCaptureShown("soft_prompt");
+  }, [showSoftPrompt]);
+  useEffect(() => {
+    if (atHardCap) analytics.emailCaptureShown("hard_cap");
+  }, [atHardCap]);
+
+  function dismissSoftPrompt() {
+    setSoftPromptDismissed({ ...softPromptDismissed, [conversationKey]: true });
+    analytics.emailCaptureDismissed("soft_prompt");
+  }
+  function markEmailSubmitted() {
+    setEmailSubmitted({ ...emailSubmitted, [conversationKey]: true });
+  }
 
   function ask(
     text: string,
@@ -188,6 +227,30 @@ export function AskFranco({
               </MessageContent>
             </Message>
           )}
+          {showSoftPrompt && (
+            <div className="border-border bg-card/60 relative rounded-2xl border px-4 py-4">
+              <button
+                type="button"
+                onClick={dismissSoftPrompt}
+                aria-label="Dismiss"
+                className="text-muted-foreground hover:text-foreground absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-full transition-colors"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+              <p className="text-foreground pr-6 text-sm font-semibold">
+                Like what you&apos;re hearing?
+              </p>
+              <p className="text-muted-foreground mt-1 text-xs leading-5">
+                Drop your email and I&apos;ll reach out — happy to keep talking
+                off the bot.
+              </p>
+              <EmailCapture
+                source="soft_prompt"
+                className="mt-3"
+                onSubmitted={markEmailSubmitted}
+              />
+            </div>
+          )}
           {error && (
             <div className="border-destructive/40 bg-destructive/10 text-destructive rounded-2xl border px-4 py-2.5 text-xs">
               <div className="flex items-center justify-between gap-3">
@@ -211,7 +274,7 @@ export function AskFranco({
         <ConversationScrollButton className="text-foreground!" />
       </Conversation>
 
-      {(!hasConversation || followUpPrompts.length > 0) && (
+      {!atHardCap && (!hasConversation || followUpPrompts.length > 0) && (
         <div className="border-border border-t py-3">
           <Suggestions>
             {followUpPrompts.length > 0
@@ -233,26 +296,46 @@ export function AskFranco({
         </div>
       )}
 
-      <div className="px-3 pb-3">
-        <PromptInput onSubmit={handleSubmit} className="">
-          <PromptInputBody>
-            <PromptInputTextarea
-              value={input}
-              onChange={(e) => setInput(e.currentTarget.value)}
-              placeholder="Ask anything…"
-              maxLength={1500}
-              className="text-foreground!"
+      {atHardCap ? (
+        <div className="border-border border-t px-5 py-5">
+          <p className="text-foreground text-sm font-semibold">
+            Want to continue the conversation? Reach out.
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs leading-5">
+            {hasSubmittedEmail
+              ? "Thanks for the email — I'll be in touch. For anything urgent: franco@appvents.com"
+              : "Drop your email and I'll get back to you directly."}
+          </p>
+          {!hasSubmittedEmail && (
+            <EmailCapture
+              source="hard_cap"
+              className="mt-3"
+              onSubmitted={markEmailSubmitted}
             />
-          </PromptInputBody>
-          <PromptInputFooter>
-            <PromptInputTools />
-            <PromptInputSubmit
-              status={status}
-              disabled={!input.trim() || busy}
-            />
-          </PromptInputFooter>
-        </PromptInput>
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="px-3 pb-3">
+          <PromptInput onSubmit={handleSubmit} className="">
+            <PromptInputBody>
+              <PromptInputTextarea
+                value={input}
+                onChange={(e) => setInput(e.currentTarget.value)}
+                placeholder="Ask anything…"
+                maxLength={1500}
+                className="text-foreground!"
+              />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools />
+              <PromptInputSubmit
+                status={status}
+                disabled={!input.trim() || busy}
+              />
+            </PromptInputFooter>
+          </PromptInput>
+        </div>
+      )}
     </div>
   );
 }

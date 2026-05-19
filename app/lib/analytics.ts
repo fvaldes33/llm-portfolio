@@ -47,4 +47,13 @@ export const analytics = {
       tool_type: params.toolType,
     });
   },
+  emailCaptureShown: (source: "soft_prompt" | "hard_cap") => {
+    trackEvent("email_capture_shown", { source });
+  },
+  emailCaptureDismissed: (source: "soft_prompt" | "hard_cap") => {
+    trackEvent("email_capture_dismissed", { source });
+  },
+  emailCaptureSubmitted: (source: "soft_prompt" | "hard_cap") => {
+    trackEvent("email_capture_submitted", { source });
+  },
 };

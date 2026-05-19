@@ -146,6 +146,30 @@ export const francoKnowledgeChunks = pgTable(
   ],
 );
 
+export const chatLeads = pgTable(
+  "chat_leads",
+  {
+    id: uuid("id")
+      .default(sql`gen_random_uuid()`)
+      .primaryKey()
+      .notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    ip: varchar("ip", { length: 45 }),
+    ipHash: varchar("ip_hash", { length: 128 }),
+    userAgent: text("user_agent"),
+    conversationId: uuid("conversation_id").references(
+      () => chatConversations.id,
+      { onDelete: "set null" },
+    ),
+    source: varchar("source", { length: 32 }).notNull(),
+    createdAt: timestampColumns.createdAt,
+  },
+  (table) => [
+    index("chat_leads_email_idx").on(table.email),
+    index("chat_leads_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export const chatMessages = pgTable(
   "chat_messages",
   {

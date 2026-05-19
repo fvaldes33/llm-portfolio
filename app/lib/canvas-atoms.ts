@@ -112,3 +112,12 @@ export const resetFollowUpPromptsAtom = atom(null, (_get, set) => {
 });
 
 export const mobileChatExpandedAtom = atom(false);
+
+export const softPromptDismissedAtom = atomWithStorage<Record<string, boolean>>(
+  "franco.softPromptDismissed",
+  {},
+);
+export const emailSubmittedAtom = atomWithStorage<Record<string, boolean>>(
+  "franco.emailSubmitted",
+  {},
+);
