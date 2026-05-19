@@ -79,6 +79,7 @@ export const chatConversations = pgTable(
       .notNull(),
     title: varchar("title", { length: 255 }),
     ipHash: varchar("ip_hash", { length: 128 }),
+    ip: varchar("ip", { length: 45 }),
     userAgent: text("user_agent"),
     model: varchar("model", { length: 128 }),
     messageCount: integer("message_count").default(0).notNull(),

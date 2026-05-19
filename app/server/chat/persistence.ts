@@ -26,6 +26,7 @@ export async function createConversation({
     .insert(chatConversations)
     .values({
       ipHash: hashIp(ip),
+      ip,
       userAgent,
       model,
       title: title?.slice(0, 255),

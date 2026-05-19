@@ -1,4 +1,4 @@
-import { ArrowUpIcon, RefreshCwIcon, RotateCcwIcon } from "lucide-react";
+import { ArrowUpIcon, RefreshCwIcon } from "lucide-react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import {
@@ -79,7 +79,6 @@ export function AskFranco({
     status,
     error,
     retryLastResponse,
-    resetChat,
   } = useFrancoChat();
   const followUpPrompts = useAtomValue(followUpPromptsAtom);
   const mobileChatExpanded = useAtomValue(mobileChatExpandedAtom);
@@ -146,21 +145,6 @@ export function AskFranco({
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {hasConversation && (
-            <button
-              type="button"
-              onClick={() => {
-                analytics.chatResetClicked(messages.length);
-                void resetChat();
-              }}
-              disabled={busy}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-              title="Reset chat"
-            >
-              <RotateCcwIcon className="size-3" />
-              Reset
-            </button>
-          )}
           <p className="text-muted-foreground font-mono text-[0.65rem] tracking-[0.25em] uppercase">
             live
           </p>

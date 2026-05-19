@@ -33,8 +33,7 @@ const MODELS = {
   gpt5ChatLatest: gpt5ChatLatest,
 };
 
-const _MAX_MESSAGES = 20;
-const _MAX_MESSAGE_CHARS = 1500;
+const MAX_MESSAGES = 20; // 10 user + 10 assistant
 
 const MODEL = MODELS.gpt5ChatLatest.modelId;
 
@@ -83,17 +82,9 @@ export async function action({ request }: Route.ActionArgs) {
   const messages = mergeIncomingMessage(previousMessages, incomingMessage);
   const userMessageOrder = messages.length - 1;
 
-  // For now, we're not enforcing any limits on the number of messages or the length of the messages.
-  // if (messages.length > _MAX_MESSAGES) {
-  //   return new Response("Conversation too long. Reset to start over.", {
-  //     status: 413,
-  //   });
-  // }
-
-  // const latestUserText = getLatestUserText(messages);
-  // if (latestUserText.length > _MAX_MESSAGE_CHARS) {
-  //   return new Response("Message too long.", { status: 413 });
-  // }
+  if (messages.length > MAX_MESSAGES) {
+    return new Response("Conversation limit reached.", { status: 413 });
+  }
 
   const validatedMessages = await validateUIMessages<FrancoUIMessage>({
     messages,
